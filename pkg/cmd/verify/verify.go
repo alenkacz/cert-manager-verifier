@@ -1,21 +1,18 @@
 package verify
 
 import (
-	"context"
 	"fmt"
+	"os"
+
+	"github.com/alenkacz/cert-manager-verifier/pkg/verify"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"os"
 )
 
 type Options struct {
-	ConfigFlags      *genericclioptions.ConfigFlags
-	Streams          *genericclioptions.IOStreams
+	ConfigFlags *genericclioptions.ConfigFlags
+	Streams     *genericclioptions.IOStreams
 }
 
 func NewOptions() *Options {
@@ -38,7 +35,7 @@ func NewCmd() *cobra.Command {
 		Long: `Cert Manager is used widely in kubernetes clusters and many things depend on it. 
 			Unfortunately it's not so easy to know that cert-manager is installed and readiness probes are not
 			enough here.`,
-		Args:    cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return options.Execute()
 		},
@@ -66,5 +63,9 @@ func (o *Options) Execute() error {
 		return fmt.Errorf("unable to get kubernetes client: %v", err)
 	}
 
-	fmt.Printf("aaa")
+	result := verify.DeploymentReady(kubeClient, verify.DeploymentDefinitionDefault())
+	for _, r := range result {
+		fmt.Printf("%s\t%t\n", r.Name, r.Ready)
+	}
+	return nil
 }

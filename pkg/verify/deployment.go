@@ -3,10 +3,12 @@ package verify
 import (
 	"context"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 )
@@ -28,37 +30,53 @@ func DeploymentDefinitionDefault() DeploymentDefinition {
 type DeploymentResult struct {
 	Name    string
 	Ready   bool
-	Message string
 	Error   error
 }
 
-func DeploymentReady(kubeClient *kubernetes.Clientset, deployments DeploymentDefinition) []DeploymentResult {
+// TODO make this configurable
+// TODO have a global timeout for all deployments
+const defaultPollInterval = 100 * time.Millisecond
+const defaultMaxWait = 10 * time.Second
+
+func DeploymentsReady(kubeClient *kubernetes.Clientset, deployments DeploymentDefinition) []DeploymentResult {
 	result := []DeploymentResult{}
 	for _, d := range deployments.Names {
-		// TODO add wait time and timeout
-		result = append(result, deploymentReady(kubeClient, d, deployments.Namespace))
+		poller := &poller{kubeClient, d, deployments.Namespace}
+		err := wait.PollImmediate(defaultPollInterval, defaultMaxWait, poller.deploymentReady)
+		dr := DeploymentResult{
+			Name:  d,
+			Ready: true,
+		}
+		if err != nil {
+			dr.Ready = false
+			dr.Error = err
+		}
+		result = append(result, dr)
 	}
 	return result
 }
 
-func deploymentReady(kubeClient *kubernetes.Clientset, name, namespace string) DeploymentResult {
+type poller struct {
+	kubeClient *kubernetes.Clientset
+	name       string
+	namespace  string
+}
+
+func (p *poller) deploymentReady() (bool, error) {
 	statusViewer := &polymorphichelpers.DeploymentStatusViewer{}
-	result := DeploymentResult{
-		Name:  name,
-		Ready: false,
-	}
-	cmDeployment, err := kubeClient.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	cmDeployment, err := p.kubeClient.AppsV1().Deployments(p.namespace).Get(context.TODO(), p.name, metav1.GetOptions{})
 	if err != nil {
-		result.Error = fmt.Errorf("error when retrieving cert-manager deployments: %v", err)
-		return result
+		return false, fmt.Errorf("error when retrieving cert-manager deployments: %v", err)
 	}
 	unst, err := toUnstructured(cmDeployment)
 	if err != nil {
-		result.Error = fmt.Errorf("error when converting deployment to unstructured: %v", err)
-		return result
+		return false, fmt.Errorf("error when converting deployment to unstructured: %v", err)
 	}
-	result.Message, result.Ready, result.Error = statusViewer.Status(unst, 0)
-	return result
+	_, ready, err := statusViewer.Status(unst, 0)
+	if err != nil {
+		return false, nil
+	}
+	return ready, nil
 }
 
 func toUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {

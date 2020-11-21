@@ -63,9 +63,9 @@ func (o *Options) Execute() error {
 		return fmt.Errorf("unable to get kubernetes client: %v", err)
 	}
 
-	result := verify.DeploymentReady(kubeClient, verify.DeploymentDefinitionDefault())
+	result := verify.DeploymentsReady(kubeClient, verify.DeploymentDefinitionDefault())
 	for _, r := range result {
-		fmt.Printf("%s\t%t\n", r.Name, r.Ready)
+		fmt.Printf("%s\t%t\t%s\n", r.Name, r.Ready, r.Error)
 	}
 	return nil
 }

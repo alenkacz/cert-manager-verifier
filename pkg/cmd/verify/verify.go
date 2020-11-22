@@ -2,12 +2,11 @@ package verify
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/alenkacz/cert-manager-verifier/pkg/verify"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
+	"os"
 )
 
 type Options struct {
@@ -43,6 +42,7 @@ func NewCmd() *cobra.Command {
 
 	options.ConfigFlags.AddFlags(rootCmd.Flags())
 	rootCmd.SetOut(options.Streams.Out)
+	rootCmd.SilenceUsage = true
 	// TODO add flag to configure cm namespace
 	// TODO add flag to specify CM version and verify version
 
@@ -63,9 +63,43 @@ func (o *Options) Execute() error {
 		return fmt.Errorf("unable to get kubernetes client: %v", err)
 	}
 
-	result := verify.DeploymentsReady(kubeClient, verify.DeploymentDefinitionDefault())
-	for _, r := range result {
-		fmt.Printf("%s\t%t\t%s\n", r.Name, r.Ready, r.Error)
+	deployments := verify.DeploymentDefinitionDefault()
+	_, _ = fmt.Fprintf(o.Streams.Out, "Waiting for deployments in namespace %s:\n%s", deployments.Namespace, formatDeploymentNames(deployments.Names))
+	result := verify.DeploymentsReady(kubeClient, deployments)
+	_, _ = fmt.Fprintf(o.Streams.Out, formatDeploymentResult(result))
+
+	if !allReady(result) {
+		return fmt.Errorf("FAILED! Not all deployments are ready.")
 	}
 	return nil
+}
+
+func allReady(result []verify.DeploymentResult) bool {
+	for _, r := range result {
+		if !r.Ready {
+			return false
+		}
+	}
+	return true
+}
+
+func formatDeploymentNames(names []string) string {
+	var formattedNames string
+	for _, n := range names {
+		formattedNames += fmt.Sprintf("\t- %s\n", n)
+	}
+	return formattedNames
+
+}
+
+func formatDeploymentResult(result []verify.DeploymentResult) string {
+	var formattedResult string
+	for _, r := range result {
+		if r.Ready {
+			formattedResult += fmt.Sprintf("Deployment %s READY! ヽ(•‿•)ノ\n", r.Name)
+		} else {
+			formattedResult += fmt.Sprintf("Deployment %s not ready. Reason: %s\n", r.Name, r.Error.Error())
+		}
+	}
+	return formattedResult
 }

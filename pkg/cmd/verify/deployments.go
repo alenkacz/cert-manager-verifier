@@ -5,6 +5,7 @@ import (
 	"github.com/alenkacz/cert-manager-verifier/pkg/verify"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"os"
 )
@@ -62,6 +63,10 @@ func (o *Options) Execute() error {
 	if err != nil {
 		return fmt.Errorf("unable to get kubernetes client: %v", err)
 	}
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return fmt.Errorf("unable to get kubernetes client: %v", err)
+	}
 
 	deployments := verify.DeploymentDefinitionDefault()
 	_, _ = fmt.Fprintf(o.Streams.Out, "Waiting for deployments in namespace %s:\n%s", deployments.Namespace, formatDeploymentNames(deployments.Names))
@@ -71,6 +76,12 @@ func (o *Options) Execute() error {
 	if !allReady(result) {
 		return fmt.Errorf("FAILED! Not all deployments are ready.")
 	}
+	err = verify.WaitForTestCertificate(dynamicClient)
+	if err != nil {
+		_, _ = fmt.Fprintf(o.Streams.Out, "error when waiting for certificate to be ready: %v", err)
+		return err
+	}
+	_, _ = fmt.Fprint(o.Streams.Out, "ヽ(•‿•)ノ Cert-manager is READY!")
 	return nil
 }
 

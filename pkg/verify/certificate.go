@@ -36,7 +36,7 @@ var namespace = &unstructured.Unstructured{
 func WaitForTestCertificate(dynamicClient dynamic.Interface) error {
 	cert := certificate("cert-manager-test", group, version)
 	resources := []*unstructured.Unstructured{namespace, issuer("cert-manager-test", group, version), cert}
-	defer cleanupTestResources(resources)
+	defer cleanupTestResources(dynamicClient, resources)
 
 	for _, res := range resources {
 		err := createResource(dynamicClient, res)
@@ -98,8 +98,29 @@ func createResource(dynamicClient dynamic.Interface, resource *unstructured.Unst
 	return nil
 }
 
-func cleanupTestResources(resources []*unstructured.Unstructured) {
-	// TODO delete also the secret?
+func deleteResource(dynamicClient dynamic.Interface, resource *unstructured.Unstructured) error {
+	gvk := resource.GroupVersionKind()
+	err := dynamicClient.Resource(schema.GroupVersionResource{
+		Group:    gvk.Group,
+		Version:  gvk.Version,
+		Resource: fmt.Sprintf("%ss", strings.ToLower(gvk.Kind)), // since we know what kinds are we dealing with here, this is OK
+	}).Namespace(resource.GetNamespace()).Delete(context.TODO(), resource.GetName(), metav1.DeleteOptions{})
+	if errors.IsNotFound(err) {
+		fmt.Printf("resource %s already deleted\n", resource.GetName())
+	} else if err != nil {
+		return fmt.Errorf("error when creating resource %s/%s. %v", resource.GetName(), resource.GetNamespace(), err)
+	}
+	return nil
+}
+
+func cleanupTestResources(dynamicClient dynamic.Interface, resources []*unstructured.Unstructured) error {
+	for _, res := range resources {
+		err := deleteResource(dynamicClient, res)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func issuer(ns string, group string, apiVersion string) *unstructured.Unstructured {

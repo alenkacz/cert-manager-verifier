@@ -69,7 +69,7 @@ func (o *Options) Execute() error {
 	}
 
 	deployments := verify.DeploymentDefinitionDefault()
-	_, _ = fmt.Fprintf(o.Streams.Out, "Waiting for deployments in namespace %s:\n%s", deployments.Namespace, formatDeploymentNames(deployments.Names))
+	_, _ = fmt.Fprintf(o.Streams.Out, "Waiting for following deployments in namespace %s:\n%s", deployments.Namespace, formatDeploymentNames(deployments.Names))
 	result := verify.DeploymentsReady(kubeClient, deployments)
 	_, _ = fmt.Fprintf(o.Streams.Out, formatDeploymentResult(result))
 

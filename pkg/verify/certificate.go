@@ -3,6 +3,7 @@ package verify
 import (
 	"context"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +37,7 @@ var namespace = &unstructured.Unstructured{
 func WaitForTestCertificate(dynamicClient dynamic.Interface) error {
 	cert := certificate("cert-manager-test", group, version)
 	resources := []*unstructured.Unstructured{namespace, issuer("cert-manager-test", group, version), cert}
-	defer cleanupTestResources(dynamicClient, resources)
+	// defer cleanupTestResources(dynamicClient, resources)
 
 	for _, res := range resources {
 		err := createResource(dynamicClient, res)
@@ -91,7 +92,7 @@ func createResource(dynamicClient dynamic.Interface, resource *unstructured.Unst
 		Resource: fmt.Sprintf("%ss", strings.ToLower(gvk.Kind)), // since we know what kinds are we dealing with here, this is OK
 	}).Namespace(resource.GetNamespace()).Create(context.TODO(), resource, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
-		fmt.Printf("resource %s already exists\n", resource.GetName())
+		logrus.Debugf("resource %s already exists\n", resource.GetName())
 	} else if err != nil {
 		return fmt.Errorf("error when creating resource %s/%s. %v", resource.GetName(), resource.GetNamespace(), err)
 	}
@@ -106,7 +107,7 @@ func deleteResource(dynamicClient dynamic.Interface, resource *unstructured.Unst
 		Resource: fmt.Sprintf("%ss", strings.ToLower(gvk.Kind)), // since we know what kinds are we dealing with here, this is OK
 	}).Namespace(resource.GetNamespace()).Delete(context.TODO(), resource.GetName(), metav1.DeleteOptions{})
 	if errors.IsNotFound(err) {
-		fmt.Printf("resource %s already deleted\n", resource.GetName())
+		logrus.Debugf("resource %s already deleted\n", resource.GetName())
 	} else if err != nil {
 		return fmt.Errorf("error when creating resource %s/%s. %v", resource.GetName(), resource.GetNamespace(), err)
 	}

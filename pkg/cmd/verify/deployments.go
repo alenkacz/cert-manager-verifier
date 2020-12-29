@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"os"
+	"github.com/sirupsen/logrus"
 )
 
 type Options struct {
@@ -51,6 +52,9 @@ func NewCmd() *cobra.Command {
 }
 
 func (o *Options) Execute() error {
+	logrus.SetOutput(o.Streams.Out)
+	logrus.SetFormatter(SimpleFormatter{})
+
 	if o.ConfigFlags.Namespace == nil {
 		cmn := "cert-manager"
 		o.ConfigFlags.Namespace = &cmn
@@ -69,19 +73,19 @@ func (o *Options) Execute() error {
 	}
 
 	deployments := verify.DeploymentDefinitionDefault()
-	_, _ = fmt.Fprintf(o.Streams.Out, "Waiting for following deployments in namespace %s:\n%s", deployments.Namespace, formatDeploymentNames(deployments.Names))
+	logrus.Infof("Waiting for following deployments in namespace %s:\n%s", deployments.Namespace, formatDeploymentNames(deployments.Names))
 	result := verify.DeploymentsReady(kubeClient, deployments)
-	_, _ = fmt.Fprintf(o.Streams.Out, formatDeploymentResult(result))
+	logrus.Infof(formatDeploymentResult(result))
 
 	if !allReady(result) {
 		return fmt.Errorf("FAILED! Not all deployments are ready.")
 	}
 	err = verify.WaitForTestCertificate(dynamicClient)
 	if err != nil {
-		_, _ = fmt.Fprintf(o.Streams.Out, "error when waiting for certificate to be ready: %v", err)
+		logrus.Infof("error when waiting for certificate to be ready: %v", err)
 		return err
 	}
-	_, _ = fmt.Fprint(o.Streams.Out, "ヽ(•‿•)ノ Cert-manager is READY!")
+	logrus.Info("ヽ(•‿•)ノ Cert-manager is READY!")
 	return nil
 }
 
@@ -113,4 +117,10 @@ func formatDeploymentResult(result []verify.DeploymentResult) string {
 		}
 	}
 	return formattedResult
+}
+
+type SimpleFormatter struct {}
+
+func (SimpleFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	return []byte(entry.Message), nil
 }

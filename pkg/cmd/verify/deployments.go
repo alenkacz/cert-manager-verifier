@@ -3,14 +3,15 @@ package verify
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/alenkacz/cert-manager-verifier/pkg/verify"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"os"
-	"github.com/sirupsen/logrus"
-	"time"
 )
 
 const defaultTimeout = 2 * time.Minute
@@ -18,6 +19,7 @@ const defaultTimeout = 2 * time.Minute
 type Options struct {
 	ConfigFlags *genericclioptions.ConfigFlags
 	Streams     *genericclioptions.IOStreams
+	DebugLogs   bool
 }
 
 func NewOptions() *Options {
@@ -46,6 +48,8 @@ func NewCmd() *cobra.Command {
 		},
 	}
 
+	rootCmd.Flags().BoolVar(&options.DebugLogs, "debug", false, "If true, will print out debug logs (default false)")
+
 	options.ConfigFlags.AddFlags(rootCmd.Flags())
 	rootCmd.SetOut(options.Streams.Out)
 	rootCmd.SilenceUsage = true
@@ -59,6 +63,9 @@ func NewCmd() *cobra.Command {
 func (o *Options) Execute() error {
 	logrus.SetOutput(o.Streams.Out)
 	logrus.SetFormatter(SimpleFormatter{})
+	if o.DebugLogs {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -127,7 +134,7 @@ func formatDeploymentResult(result []verify.DeploymentResult) string {
 	return formattedResult
 }
 
-type SimpleFormatter struct {}
+type SimpleFormatter struct{}
 
 func (SimpleFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(entry.Message), nil

@@ -43,13 +43,31 @@ func WaitForTestCertificate(ctx context.Context, dynamicClient dynamic.Interface
 	defer cleanupTestResources(dynamicClient, resources)
 
 	for _, res := range resources {
-		err := createResource(dynamicClient, res)
+		// we need to retry here because cert-manager webhook might not be ready yet
+		err := createWithRetry(ctx, res, dynamicClient)
 		if err != nil {
 			return err
 		}
 	}
 	poller := &certPoller{dynamicClient, cert}
 	return wait.PollImmediateUntil(defaultPollInterval, poller.certificateReady, ctx.Done())
+}
+
+func createWithRetry(ctx context.Context, res *unstructured.Unstructured, dynamicClient dynamic.Interface) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("Timeout reached: %v", ctx.Err())
+		default:
+			err := createResource(dynamicClient, res)
+			if err != nil {
+				logrus.Debugf("Retrying create of resource %s, error: %v\n", res.GetName(), err)
+			} else {
+				logrus.Debugf("Resource %s created \n", res.GetName())
+				return nil
+			}
+		}
+	}
 }
 
 type certPoller struct {

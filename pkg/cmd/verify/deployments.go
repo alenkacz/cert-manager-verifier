@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"context"
 	"fmt"
 	"github.com/alenkacz/cert-manager-verifier/pkg/verify"
 	"github.com/spf13/cobra"
@@ -9,7 +10,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"os"
 	"github.com/sirupsen/logrus"
+	"time"
 )
+
+const defaultTimeout = 2 * time.Minute
 
 type Options struct {
 	ConfigFlags *genericclioptions.ConfigFlags
@@ -47,6 +51,7 @@ func NewCmd() *cobra.Command {
 	rootCmd.SilenceUsage = true
 	// TODO add flag to configure cm namespace
 	// TODO add flag to specify CM version and verify version
+	// TODO make timeout configurable
 
 	return rootCmd
 }
@@ -54,6 +59,9 @@ func NewCmd() *cobra.Command {
 func (o *Options) Execute() error {
 	logrus.SetOutput(o.Streams.Out)
 	logrus.SetFormatter(SimpleFormatter{})
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
 
 	if o.ConfigFlags.Namespace == nil {
 		cmn := "cert-manager"
@@ -74,13 +82,13 @@ func (o *Options) Execute() error {
 
 	deployments := verify.DeploymentDefinitionDefault()
 	logrus.Infof("Waiting for following deployments in namespace %s:\n%s", deployments.Namespace, formatDeploymentNames(deployments.Names))
-	result := verify.DeploymentsReady(kubeClient, deployments)
+	result := verify.DeploymentsReady(ctx, kubeClient, deployments)
 	logrus.Infof(formatDeploymentResult(result))
 
 	if !allReady(result) {
 		return fmt.Errorf("FAILED! Not all deployments are ready.")
 	}
-	err = verify.WaitForTestCertificate(dynamicClient)
+	err = verify.WaitForTestCertificate(ctx, dynamicClient)
 	if err != nil {
 		logrus.Infof("error when waiting for certificate to be ready: %v", err)
 		return err

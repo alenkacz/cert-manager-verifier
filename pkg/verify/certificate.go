@@ -34,10 +34,13 @@ var namespace = &unstructured.Unstructured{
 
 // TODO support also other API versions
 // TODO make it possible to execute this inside namespace, not creating one
-func WaitForTestCertificate(dynamicClient dynamic.Interface) error {
+func WaitForTestCertificate(ctx context.Context, dynamicClient dynamic.Interface) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("Timeout reached: %v", err)
+	}
 	cert := certificate("cert-manager-test", group, version)
 	resources := []*unstructured.Unstructured{namespace, issuer("cert-manager-test", group, version), cert}
-	// defer cleanupTestResources(dynamicClient, resources)
+	defer cleanupTestResources(dynamicClient, resources)
 
 	for _, res := range resources {
 		err := createResource(dynamicClient, res)
@@ -46,7 +49,7 @@ func WaitForTestCertificate(dynamicClient dynamic.Interface) error {
 		}
 	}
 	poller := &certPoller{dynamicClient, cert}
-	return wait.PollImmediate(defaultPollInterval, defaultMaxWait, poller.certificateReady)
+	return wait.PollImmediateUntil(defaultPollInterval, poller.certificateReady, ctx.Done())
 }
 
 type certPoller struct {

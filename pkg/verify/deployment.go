@@ -36,13 +36,22 @@ type DeploymentResult struct {
 // TODO make this configurable
 // TODO have a global timeout for all deployments
 const defaultPollInterval = 100 * time.Millisecond
-const defaultMaxWait = 10 * time.Second
 
-func DeploymentsReady(kubeClient *kubernetes.Clientset, deployments DeploymentDefinition) []DeploymentResult {
+func DeploymentsReady(ctx context.Context, kubeClient *kubernetes.Clientset, deployments DeploymentDefinition) []DeploymentResult {
+	ctx.Deadline()
 	result := []DeploymentResult{}
 	for _, d := range deployments.Names {
+		if err := ctx.Err(); err != nil {
+			dr := DeploymentResult{
+				Name:  d,
+				Error: fmt.Errorf("Timeout reached: %v", err),
+			}
+			result = append(result, dr)
+			continue
+		}
+
 		poller := &poller{kubeClient, d, deployments.Namespace}
-		err := wait.PollImmediate(defaultPollInterval, defaultMaxWait, poller.deploymentReady)
+		err := wait.PollImmediateUntil(defaultPollInterval, poller.deploymentReady, ctx.Done())
 		dr := DeploymentResult{
 			Name:  d,
 			Ready: true,

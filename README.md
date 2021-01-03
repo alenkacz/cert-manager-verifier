@@ -2,6 +2,8 @@
 
 Helps you properly wait for cert-manager installation to be ready to use.
 
+DISCLAIMER: this currently works only with latest cert-manager. Support of older versions is in progress.
+
 ## Motivation
 
 Pretty much every kubernetes installation nowadays depends on cert-manager for certificate provisioning. But at the same time, I've seen a lot of flakiness in several projects that were caused by inproperly implemented wait on cert-manager to be ready.

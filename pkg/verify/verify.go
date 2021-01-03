@@ -54,6 +54,7 @@ func Verify(ctx context.Context, config *rest.Config, options *Options) (*Verify
 		result.CertificateError = err
 	} else {
 		result.CertificateSuccess = true
+		result.Success = true
 	}
 
 	return result, nil

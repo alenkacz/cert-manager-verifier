@@ -39,3 +39,21 @@ You can configure what the CLI does via flags:
 ```
 
 ### As a library
+
+For a full example see [examples/main.go](examples/main.go)
+
+```
+import "github.com/alenkacz/cert-manager-verifier/pkg/verify"
+
+...
+
+result, err := verify.Verify(ctx, config, &verify.Options{CertManagerNamespace: "cert-manager"})
+if err != nil {
+    log.Fatal(err)
+}
+if result.Success {
+    fmt.Println("Success!!!")
+} else {
+    fmt.Println("Failure :-(")
+}
+```

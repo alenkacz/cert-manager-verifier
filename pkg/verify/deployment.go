@@ -18,11 +18,11 @@ type DeploymentDefinition struct {
 	Names     []string
 }
 
-func DeploymentDefinitionDefault() DeploymentDefinition {
+func DeploymentDefinitionDefault(namespace string) DeploymentDefinition {
 	// TODO make sure these Names work also with helm chart installation
 	// TODO make sure we support cert-manager that does not have all these deployments
 	return DeploymentDefinition{
-		Namespace: "cert-manager",
+		Namespace: namespace,
 		Names:     []string{"cert-manager", "cert-manager-cainjector", "cert-manager-webhook"},
 	}
 }

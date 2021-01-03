@@ -10,20 +10,20 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 )
 
 const defaultTimeout = 2 * time.Minute
+var defaultInstallationNamespace = "cert-manager"
 
 type Options struct {
 	ConfigFlags *genericclioptions.ConfigFlags
 	Streams     *genericclioptions.IOStreams
 	DebugLogs   bool
+	CertManagerNamespace string
 }
 
 func NewOptions() *Options {
-	return &Options{
+	opt := &Options{
 		ConfigFlags: genericclioptions.NewConfigFlags(true),
 		Streams: &genericclioptions.IOStreams{
 			In:     os.Stdin,
@@ -31,6 +31,9 @@ func NewOptions() *Options {
 			ErrOut: os.Stderr,
 		},
 	}
+	// this is necessary so that the namespace flag is not inherited from ConfigFlags and we can redefine it
+	opt.ConfigFlags.Namespace = nil
+	return opt
 }
 
 func NewCmd() *cobra.Command {
@@ -49,11 +52,11 @@ func NewCmd() *cobra.Command {
 	}
 
 	rootCmd.Flags().BoolVar(&options.DebugLogs, "debug", false, "If true, will print out debug logs (default false)")
+	rootCmd.Flags().StringVarP(&options.CertManagerNamespace, "namespace", "n", defaultInstallationNamespace, "Namespace in which cert-manager is installed")
 
 	options.ConfigFlags.AddFlags(rootCmd.Flags())
 	rootCmd.SetOut(options.Streams.Out)
 	rootCmd.SilenceUsage = true
-	// TODO add flag to configure cm namespace
 	// TODO add flag to specify CM version and verify version
 	// TODO make timeout configurable
 
@@ -70,56 +73,31 @@ func (o *Options) Execute() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	if o.ConfigFlags.Namespace == nil {
-		cmn := "cert-manager"
-		o.ConfigFlags.Namespace = &cmn
-	}
 	config, err := o.ConfigFlags.ToRESTConfig()
 	if err != nil {
 		return fmt.Errorf("unable to get kubernetes rest config: %v", err)
 	}
-	kubeClient, err := kubernetes.NewForConfig(config)
+
+	logrus.Infof("Waiting for deployments in namespace %s:\n", o.CertManagerNamespace)
+	result, err := verify.Verify(ctx, config, &verify.Options{
+		o.CertManagerNamespace,
+	})
 	if err != nil {
-		return fmt.Errorf("unable to get kubernetes client: %v", err)
-	}
-	dynamicClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("unable to get kubernetes client: %v", err)
+		return err
 	}
 
-	deployments := verify.DeploymentDefinitionDefault()
-	logrus.Infof("Waiting for following deployments in namespace %s:\n%s", deployments.Namespace, formatDeploymentNames(deployments.Names))
-	result := verify.DeploymentsReady(ctx, kubeClient, deployments)
-	logrus.Infof(formatDeploymentResult(result))
+	logrus.Infof(formatDeploymentResult(result.DeploymentsResult))
 
-	if !allReady(result) {
+	if !result.DeploymentsSuccess {
 		return fmt.Errorf("FAILED! Not all deployments are ready.")
 	}
-	err = verify.WaitForTestCertificate(ctx, dynamicClient)
-	if err != nil {
-		logrus.Infof("error when waiting for certificate to be ready: %v", err)
+	if result.CertificateError != nil {
+		logrus.
+			Infof("error when waiting for certificate to be ready: %v", err)
 		return err
 	}
 	logrus.Info("ヽ(•‿•)ノ Cert-manager is READY!")
 	return nil
-}
-
-func allReady(result []verify.DeploymentResult) bool {
-	for _, r := range result {
-		if !r.Ready {
-			return false
-		}
-	}
-	return true
-}
-
-func formatDeploymentNames(names []string) string {
-	var formattedNames string
-	for _, n := range names {
-		formattedNames += fmt.Sprintf("\t- %s\n", n)
-	}
-	return formattedNames
-
 }
 
 func formatDeploymentResult(result []verify.DeploymentResult) string {

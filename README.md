@@ -36,6 +36,8 @@ It expects kubeconfig/user that is allowed to create namespace in the default se
 You can configure what the CLI does via flags:
 ```
 --debug 'print out debug logs as well'
+--namespace 'namespace into which cert-manager is installed'
+--timeout 'set timeout after which we give up waiting for cert-manager'
 ```
 
 ### As a library

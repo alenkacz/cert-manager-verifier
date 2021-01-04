@@ -20,6 +20,7 @@ type Options struct {
 	Streams     *genericclioptions.IOStreams
 	DebugLogs   bool
 	CertManagerNamespace string
+	Timeout time.Duration
 }
 
 func NewOptions() *Options {
@@ -53,6 +54,7 @@ func NewCmd() *cobra.Command {
 
 	rootCmd.Flags().BoolVar(&options.DebugLogs, "debug", false, "If true, will print out debug logs (default false)")
 	rootCmd.Flags().StringVarP(&options.CertManagerNamespace, "namespace", "n", defaultInstallationNamespace, "Namespace in which cert-manager is installed")
+	rootCmd.Flags().DurationVar(&options.Timeout, "timeout", defaultTimeout, "Timeout after which we give up waiting for cert-manager to be ready.")
 
 	options.ConfigFlags.AddFlags(rootCmd.Flags())
 	rootCmd.SetOut(options.Streams.Out)
@@ -70,7 +72,7 @@ func (o *Options) Execute() error {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 	defer cancel()
 
 	config, err := o.ConfigFlags.ToRESTConfig()

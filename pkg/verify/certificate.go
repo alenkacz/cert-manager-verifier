@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	group   = "cert-manager.io"
-	version = "v1"
+	defaultGroup   = "cert-manager.io"
+	defaultVersion = "v1"
 )
 
 var namespace = &unstructured.Unstructured{
@@ -31,10 +31,11 @@ var namespace = &unstructured.Unstructured{
 
 // TODO support also other API versions
 // TODO make it possible to execute this inside namespace, not creating one
-func WaitForTestCertificate(ctx context.Context, dynamicClient dynamic.Interface) error {
+func WaitForTestCertificate(ctx context.Context, dynamicClient dynamic.Interface, cmVersion string) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("Timeout reached: %v", err)
 	}
+	group, version := getGroupVersion(cmVersion)
 	cert := certificate("cert-manager-test", group, version)
 	resources := []*unstructured.Unstructured{namespace, issuer("cert-manager-test", group, version), cert}
 	defer cleanupTestResources(dynamicClient, resources)
@@ -48,6 +49,14 @@ func WaitForTestCertificate(ctx context.Context, dynamicClient dynamic.Interface
 	}
 	poller := &certPoller{dynamicClient, cert}
 	return wait.PollImmediateUntil(defaultPollInterval, poller.certificateReady, ctx.Done())
+}
+
+func getGroupVersion(cmVersion string) (string, string) {
+	if strings.HasPrefix(cmVersion, "v1.0") {
+		return defaultGroup, defaultVersion
+	} else {
+		return defaultGroup, "v1alpha2"
+	}
 }
 
 func createWithRetry(ctx context.Context, res *unstructured.Unstructured, dynamicClient dynamic.Interface) error {

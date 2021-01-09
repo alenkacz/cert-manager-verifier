@@ -3,8 +3,10 @@ package verify
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"time"
+
+	dp "github.com/novln/docker-parser"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,7 +22,7 @@ type DeploymentDefinition struct {
 }
 
 type Deployment struct {
-	Name string
+	Name     string
 	Required bool
 }
 
@@ -34,9 +36,10 @@ func DeploymentDefinitionDefault(namespace string) DeploymentDefinition {
 }
 
 type DeploymentResult struct {
-	Deployment    Deployment
-	Status   Status
-	Error   error
+	Deployment Deployment
+	Status     Status
+	Error      error
+	Version    string
 }
 
 type Status int
@@ -57,21 +60,30 @@ func DeploymentsReady(ctx context.Context, kubeClient *kubernetes.Clientset, dep
 	for _, d := range deployments.Deployments {
 		if err := ctx.Err(); err != nil {
 			dr := DeploymentResult{
-				Deployment:  d,
-				Error: fmt.Errorf("Timeout reached: %v", err),
+				Deployment: d,
+				Error:      fmt.Errorf("Timeout reached: %v", err),
 			}
 			result = append(result, dr)
 			continue
 		}
 		dr := DeploymentResult{
-			Deployment:  d,
-			Status: Ready,
+			Deployment: d,
+			Status:     Ready,
 		}
-		_, err := kubeClient.AppsV1().Deployments(deployments.Namespace).Get(context.TODO(), d.Name, metav1.GetOptions{})
+		deployment, err := kubeClient.AppsV1().Deployments(deployments.Namespace).Get(context.TODO(), d.Name, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			dr.Status = NotFound
 			result = append(result, dr)
 			continue
+		}
+		if d.Required {
+			c := deployment.Spec.Template.Spec.Containers
+			if len(c) > 0 {
+				r, err := dp.Parse(c[0].Image)
+				if err == nil {
+					dr.Version = r.Tag()
+				}
+			}
 		}
 		poller := &poller{kubeClient, d, deployments.Namespace}
 		err = wait.PollImmediateUntil(defaultPollInterval, poller.deploymentReady, ctx.Done())

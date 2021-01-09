@@ -2,7 +2,7 @@
 
 Helps you properly wait for cert-manager installation to be ready to use.
 
-DISCLAIMER: this currently works only with latest cert-manager. Support of older versions is in progress.
+All versions of cert-manager are supported down to 0.12.
 
 ## Motivation
 

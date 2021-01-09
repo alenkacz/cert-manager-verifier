@@ -49,7 +49,7 @@ func Verify(ctx context.Context, config *rest.Config, options *Options) (*Verify
 		return result, nil
 	}
 	result.DeploymentsSuccess = true
-	err = WaitForTestCertificate(ctx, dynamicClient)
+	err = WaitForTestCertificate(ctx, dynamicClient, version(deploymentResult))
 	if err != nil {
 		result.CertificateError = err
 	} else {
@@ -58,6 +58,15 @@ func Verify(ctx context.Context, config *rest.Config, options *Options) (*Verify
 	}
 
 	return result, nil
+}
+
+func version(result []DeploymentResult) string {
+	for _, r := range result {
+		if r.Version != "" {
+			return r.Version
+		}
+	}
+	return ""
 }
 
 func allReady(result []DeploymentResult) bool {

@@ -1,6 +1,6 @@
 # cert-manager-verifier
 
-Helps you properly wait for cert-manager installation to be ready to use.
+Helps you properly wait for [cert-manager](https://github.com/jetstack/cert-manager) installation to be ready to use.
 
 All versions of cert-manager are supported down to 0.12.
 

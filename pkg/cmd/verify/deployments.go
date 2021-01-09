@@ -95,7 +95,7 @@ func (o *Options) Execute() error {
 	}
 	if result.CertificateError != nil {
 		logrus.
-			Infof("error when waiting for certificate to be ready: %v", err)
+			Infof("error when waiting for certificate to be ready: %v", result.CertificateError)
 		return err
 	}
 	logrus.Info("ヽ(•‿•)ノ Cert-manager is READY!")
@@ -105,10 +105,12 @@ func (o *Options) Execute() error {
 func formatDeploymentResult(result []verify.DeploymentResult) string {
 	var formattedResult string
 	for _, r := range result {
-		if r.Ready {
-			formattedResult += fmt.Sprintf("Deployment %s READY! ヽ(•‿•)ノ\n", r.Name)
+		if r.Status == verify.Ready {
+			formattedResult += fmt.Sprintf("Deployment %s READY! ヽ(•‿•)ノ\n", r.Deployment.Name)
+		} else if r.Status == verify.NotReady {
+			formattedResult += fmt.Sprintf("Deployment %s not ready. Reason: %s\n", r.Deployment.Name, r.Error.Error())
 		} else {
-			formattedResult += fmt.Sprintf("Deployment %s not ready. Reason: %s\n", r.Name, r.Error.Error())
+			formattedResult += fmt.Sprintf("Deployment %s not found. Required?: %t\n", r.Deployment.Name, r.Deployment.Required)
 		}
 	}
 	return formattedResult

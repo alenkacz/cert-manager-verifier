@@ -3,6 +3,7 @@ package verify
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,24 +15,37 @@ import (
 )
 
 type DeploymentDefinition struct {
-	Namespace string
-	Names     []string
+	Namespace   string
+	Deployments []Deployment
+}
+
+type Deployment struct {
+	Name string
+	Required bool
 }
 
 func DeploymentDefinitionDefault(namespace string) DeploymentDefinition {
-	// TODO make sure these Names work also with helm chart installation
+	// TODO make sure these Deployments work also with helm chart installation
 	// TODO make sure we support cert-manager that does not have all these deployments
 	return DeploymentDefinition{
-		Namespace: namespace,
-		Names:     []string{"cert-manager", "cert-manager-cainjector", "cert-manager-webhook"},
+		Namespace:   namespace,
+		Deployments: []Deployment{{"cert-manager", true}, {"cert-manager-cainjector", false}, {"cert-manager-webhook", false}},
 	}
 }
 
 type DeploymentResult struct {
-	Name    string
-	Ready   bool
+	Deployment    Deployment
+	Status   Status
 	Error   error
 }
+
+type Status int
+
+const (
+	NotReady Status = iota
+	Ready
+	NotFound
+)
 
 // TODO make this configurable
 // TODO have a global timeout for all deployments
@@ -40,24 +54,29 @@ const defaultPollInterval = 100 * time.Millisecond
 func DeploymentsReady(ctx context.Context, kubeClient *kubernetes.Clientset, deployments DeploymentDefinition) []DeploymentResult {
 	ctx.Deadline()
 	result := []DeploymentResult{}
-	for _, d := range deployments.Names {
+	for _, d := range deployments.Deployments {
 		if err := ctx.Err(); err != nil {
 			dr := DeploymentResult{
-				Name:  d,
+				Deployment:  d,
 				Error: fmt.Errorf("Timeout reached: %v", err),
 			}
 			result = append(result, dr)
 			continue
 		}
-
-		poller := &poller{kubeClient, d, deployments.Namespace}
-		err := wait.PollImmediateUntil(defaultPollInterval, poller.deploymentReady, ctx.Done())
 		dr := DeploymentResult{
-			Name:  d,
-			Ready: true,
+			Deployment:  d,
+			Status: Ready,
 		}
+		_, err := kubeClient.AppsV1().Deployments(deployments.Namespace).Get(context.TODO(), d.Name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			dr.Status = NotFound
+			result = append(result, dr)
+			continue
+		}
+		poller := &poller{kubeClient, d, deployments.Namespace}
+		err = wait.PollImmediateUntil(defaultPollInterval, poller.deploymentReady, ctx.Done())
 		if err != nil {
-			dr.Ready = false
+			dr.Status = NotReady
 			dr.Error = err
 		}
 		result = append(result, dr)
@@ -67,13 +86,13 @@ func DeploymentsReady(ctx context.Context, kubeClient *kubernetes.Clientset, dep
 
 type poller struct {
 	kubeClient *kubernetes.Clientset
-	name       string
+	deployment Deployment
 	namespace  string
 }
 
 func (p *poller) deploymentReady() (bool, error) {
 	statusViewer := &polymorphichelpers.DeploymentStatusViewer{}
-	cmDeployment, err := p.kubeClient.AppsV1().Deployments(p.namespace).Get(context.TODO(), p.name, metav1.GetOptions{})
+	cmDeployment, err := p.kubeClient.AppsV1().Deployments(p.namespace).Get(context.TODO(), p.deployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return false, fmt.Errorf("error when retrieving cert-manager deployments: %v", err)
 	}

@@ -62,7 +62,7 @@ func Verify(ctx context.Context, config *rest.Config, options *Options) (*Verify
 
 func allReady(result []DeploymentResult) bool {
 	for _, r := range result {
-		if !r.Ready {
+		if r.Status == NotReady || (r.Status == NotFound && r.Deployment.Required) {
 			return false
 		}
 	}

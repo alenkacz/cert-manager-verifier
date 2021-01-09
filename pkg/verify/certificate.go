@@ -26,9 +26,6 @@ var namespace = &unstructured.Unstructured{
 		"metadata": map[string]interface{}{
 			"name": "cert-manager-test",
 		},
-		"spec": map[string]interface{}{
-			"selfSigned": map[string]interface{}{},
-		},
 	},
 }
 
@@ -60,7 +57,9 @@ func createWithRetry(ctx context.Context, res *unstructured.Unstructured, dynami
 			return fmt.Errorf("Timeout reached: %v", ctx.Err())
 		default:
 			err := createResource(dynamicClient, res)
-			if err != nil {
+			if errors.IsAlreadyExists(err) {
+				logrus.Debugf("Resource %s already exists \n", res.GetName())
+			} else if err != nil {
 				logrus.Debugf("Retrying create of resource %s, error: %v\n", res.GetName(), err)
 			} else {
 				logrus.Debugf("Resource %s created \n", res.GetName())

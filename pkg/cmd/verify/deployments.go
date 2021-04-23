@@ -13,14 +13,16 @@ import (
 )
 
 const defaultTimeout = 2 * time.Minute
+
 var defaultInstallationNamespace = "cert-manager"
 
 type Options struct {
-	ConfigFlags *genericclioptions.ConfigFlags
-	Streams     *genericclioptions.IOStreams
-	DebugLogs   bool
+	ConfigFlags          *genericclioptions.ConfigFlags
+	Streams              *genericclioptions.IOStreams
+	DebugLogs            bool
 	CertManagerNamespace string
-	Timeout time.Duration
+	DeploymentPrefix     string
+	Timeout              time.Duration
 }
 
 func NewOptions() *Options {
@@ -55,6 +57,7 @@ func NewCmd() *cobra.Command {
 	rootCmd.Flags().BoolVar(&options.DebugLogs, "debug", false, "If true, will print out debug logs (default false)")
 	rootCmd.Flags().StringVarP(&options.CertManagerNamespace, "namespace", "n", defaultInstallationNamespace, "Namespace in which cert-manager is installed")
 	rootCmd.Flags().DurationVar(&options.Timeout, "timeout", defaultTimeout, "Timeout after which we give up waiting for cert-manager to be ready.")
+	rootCmd.Flags().StringVarP(&options.DeploymentPrefix, "prefix", "p", "", "Prefix for the cert-manager deployment names. Default is empty")
 
 	options.ConfigFlags.AddFlags(rootCmd.Flags())
 	rootCmd.SetOut(options.Streams.Out)
@@ -83,6 +86,7 @@ func (o *Options) Execute() error {
 	logrus.Infof("Waiting for deployments in namespace %s:\n", o.CertManagerNamespace)
 	result, err := verify.Verify(ctx, config, &verify.Options{
 		o.CertManagerNamespace,
+		o.DeploymentPrefix,
 	})
 	if err != nil {
 		return err

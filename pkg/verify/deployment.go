@@ -26,13 +26,19 @@ type Deployment struct {
 	Required bool
 }
 
-func DeploymentDefinitionDefault(namespace string) DeploymentDefinition {
+func DeploymentDefinitionDefault(namespace, deploymentPrefix string) DeploymentDefinition {
 	// TODO make sure these Deployments work also with helm chart installation
 	// TODO make sure we support cert-manager that does not have all these deployments
-	return DeploymentDefinition{
+	def := DeploymentDefinition{
 		Namespace:   namespace,
 		Deployments: []Deployment{{"cert-manager", true}, {"cert-manager-cainjector", false}, {"cert-manager-webhook", false}},
 	}
+	if deploymentPrefix != "" {
+		for _, d := range def.Deployments {
+			d.Name = deploymentPrefix + d.Name
+		}
+	}
+	return def
 }
 
 type DeploymentResult struct {

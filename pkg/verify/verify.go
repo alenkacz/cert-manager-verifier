@@ -3,6 +3,7 @@ package verify
 import (
 	"context"
 	"fmt"
+
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -15,16 +16,17 @@ type VerifyResult struct {
 	CertificateSuccess bool
 
 	DeploymentsResult []DeploymentResult
-	CertificateError error
+	CertificateError  error
 }
 
 type CertificateResult struct {
 	Success bool
-	Error error
+	Error   error
 }
 
 type Options struct {
 	CertManagerNamespace string
+	DeploymentPrefix     string
 }
 
 func Verify(ctx context.Context, config *rest.Config, options *Options) (*VerifyResult, error) {
@@ -37,11 +39,11 @@ func Verify(ctx context.Context, config *rest.Config, options *Options) (*Verify
 		return nil, fmt.Errorf("unable to get kubernetes client: %v", err)
 	}
 
-	deployments := DeploymentDefinitionDefault(options.CertManagerNamespace)
+	deployments := DeploymentDefinitionDefault(options.CertManagerNamespace, options.DeploymentPrefix)
 	deploymentResult := DeploymentsReady(ctx, kubeClient, deployments)
 
 	result := &VerifyResult{
-		Success: false,
+		Success:           false,
 		DeploymentsResult: deploymentResult,
 	}
 

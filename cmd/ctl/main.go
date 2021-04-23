@@ -1,7 +1,14 @@
 package main
 
-import "github.com/alenkacz/cert-manager-verifier/pkg/cmd/verify"
+import (
+	"os"
+
+	"github.com/alenkacz/cert-manager-verifier/pkg/cmd/verify"
+)
 
 func main() {
-	verify.NewCmd().Execute()
+	err := verify.NewCmd().Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }

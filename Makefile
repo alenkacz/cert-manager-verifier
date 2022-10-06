@@ -8,4 +8,4 @@ build:
 
 .PHONY: e2e-test
 e2e-test: build
-	./hack/run-e2e-tests.sh
+	./test/run-e2e-tests.sh

@@ -99,10 +99,10 @@ func (o *Options) Execute() error {
 	}
 	if result.CertificateError != nil {
 		logrus.
-			Infof("error when waiting for certificate to be ready: %v", result.CertificateError)
+			Infof("error when waiting for certificate to be ready: %v\n", result.CertificateError)
 		return err
 	}
-	logrus.Info("ヽ(•‿•)ノ Cert-manager is READY!")
+	logrus.Info("ヽ(•‿•)ノ Cert-manager is READY!\n")
 	return nil
 }
 

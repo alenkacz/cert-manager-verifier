@@ -2,7 +2,7 @@
 
 Helps you properly wait for [cert-manager](https://github.com/jetstack/cert-manager) installation to be ready to use.
 
-All versions of cert-manager are supported down to 0.12.
+All versions of cert-manager are supported down to 1.0
 
 ## Motivation
 

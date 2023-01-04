@@ -6,6 +6,7 @@ hack/manifest-gen
 hack/controller-gen
 test/.git-credentials
 reports/
+kuttl
 config/manager_image_patch.yaml-e
 # created by /hack/generate_krew.sh during release
 kind-logs-*

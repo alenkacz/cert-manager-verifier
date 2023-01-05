@@ -10,7 +10,7 @@ arch_name="$(uname -m)"
 
 if [[ $arch_name == "arm64" ]]; then
     curl -L https://github.com/kudobuilder/kuttl/releases/download/v${KUTTL_VERSION}/kubectl-kuttl_${KUTTL_VERSION}_darwin_arm64 --output kuttl
-elif [[ $arch_name == "x86_64" ]]; then
+elif [[ $arch_name == "Darwin" ]]; then
     curl -L https://github.com/kudobuilder/kuttl/releases/download/v${KUTTL_VERSION}/kubectl-kuttl_${KUTTL_VERSION}_darwin_x86_64 --output kuttl
 elif [[ "$(expr substr $(uname -s) 1 5)" == "Linux" ]]; then
     curl -L https://github.com/kudobuilder/kuttl/releases/download/v${KUTTL_VERSION}/kubectl-kuttl_${KUTTL_VERSION}_linux_x86_64 --output kuttl

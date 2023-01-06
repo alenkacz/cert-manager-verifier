@@ -35,9 +35,8 @@ func WaitForTestCertificate(ctx context.Context, dynamicClient dynamic.Interface
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("Timeout reached: %v", err)
 	}
-	group, version := getGroupVersion(cmVersion)
-	cert := certificate("cert-manager-test", group, version)
-	resources := []*unstructured.Unstructured{namespace, issuer("cert-manager-test", group, version), cert}
+	cert := certificate("cert-manager-test", defaultGroup, defaultVersion)
+	resources := []*unstructured.Unstructured{namespace, issuer("cert-manager-test", defaultGroup, defaultVersion), cert}
 	defer cleanupTestResources(dynamicClient, resources)
 
 	for _, res := range resources {
@@ -49,14 +48,6 @@ func WaitForTestCertificate(ctx context.Context, dynamicClient dynamic.Interface
 	}
 	poller := &certPoller{dynamicClient, cert}
 	return wait.PollImmediateUntil(defaultPollInterval, poller.certificateReady, ctx.Done())
-}
-
-func getGroupVersion(cmVersion string) (string, string) {
-	if strings.HasPrefix(cmVersion, "v1.0") {
-		return defaultGroup, defaultVersion
-	} else {
-		return defaultGroup, "v1alpha2"
-	}
 }
 
 func createWithRetry(ctx context.Context, res *unstructured.Unstructured, dynamicClient dynamic.Interface) error {
@@ -123,7 +114,7 @@ func createResource(dynamicClient dynamic.Interface, resource *unstructured.Unst
 	if errors.IsAlreadyExists(err) {
 		logrus.Debugf("resource %s already exists\n", resource.GetName())
 	} else if err != nil {
-		return fmt.Errorf("error when creating resource %s/%s. %v", resource.GetName(), resource.GetNamespace(), err)
+		return fmt.Errorf("error when creating resource %s/%s/%s/%s. %v", resource.GetKind(), resource.GetAPIVersion(), resource.GetName(), resource.GetNamespace(), err)
 	}
 	return nil
 }

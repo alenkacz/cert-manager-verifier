@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/alenkacz/cert-manager-verifier/pkg/verify"
 	"k8s.io/client-go/tools/clientcmd"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
-	"log"
 )
 
 const defaultTimeout = 2 * time.Minute

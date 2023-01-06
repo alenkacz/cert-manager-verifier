@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -51,7 +52,11 @@ func Verify(ctx context.Context, config *rest.Config, options *Options) (*Verify
 		return result, nil
 	}
 	result.DeploymentsSuccess = true
-	err = WaitForTestCertificate(ctx, dynamicClient, version(deploymentResult))
+
+	cmVersion := version(deploymentResult)
+
+	logrus.Debugf("cert-manager version: %s \n", cmVersion)
+	err = WaitForTestCertificate(ctx, dynamicClient, cmVersion)
 	if err != nil {
 		result.CertificateError = err
 	} else {

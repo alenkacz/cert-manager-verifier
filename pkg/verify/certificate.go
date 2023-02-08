@@ -3,8 +3,9 @@ package verify
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +53,7 @@ func WaitForTestCertificate(ctx context.Context, dynamicClient dynamic.Interface
 }
 
 func getGroupVersion(cmVersion string) (string, string) {
-	if strings.HasPrefix(cmVersion, "v1.0") {
+	if strings.HasPrefix(cmVersion, "v1.") {
 		return defaultGroup, defaultVersion
 	} else {
 		return defaultGroup, "v1alpha2"

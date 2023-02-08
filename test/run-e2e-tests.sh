@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 set -o xtrace
 
-KUTTL_VERSION="0.13.0"
+KUTTL_VERSION="0.15.0"
 arch_name="$(uname -m)"
 
 if [[ $arch_name == "arm64" ]]; then

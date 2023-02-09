@@ -1,4 +1,8 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
+  - command: pwd
+  - command: ls -al cert-manager
+  - command: ls -al .
+  - command: cat cert-manager/cert-manager.yaml
   - command: kubectl apply --validate=false -f cert-manager/cert-manager.yaml
